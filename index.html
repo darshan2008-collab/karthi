@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Landslide Early Warning & Monitoring System</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          boxShadow: {
+            'subtle': '0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px 0 rgba(0, 0, 0, 0.02)',
+            'card': '0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 2px 6px -1px rgba(15, 23, 42, 0.02)',
+            'card-hover': '0 10px 25px -3px rgba(15, 23, 42, 0.08), 0 4px 10px -2px rgba(15, 23, 42, 0.03)',
+            'danger': '0 10px 30px -4px rgba(239, 68, 68, 0.25)',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      background-color: #F8FAFC;
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.05) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(56, 189, 248, 0.05) 0px, transparent 50%),
+        radial-gradient(at 50% 100%, rgba(99, 102, 241, 0.04) 0px, transparent 50%);
+      background-attachment: fixed;
+    }
+
+    @keyframes pulseRing {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.15); opacity: 0.3; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+    .pulse-ring {
+      animation: pulseRing 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    @keyframes dangerPulse {
+      0%, 100% { border-color: #f87171; box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+      50% { border-color: #ef4444; box-shadow: 0 0 20px 4px rgba(239, 68, 68, 0.2); }
+    }
+    .danger-active {
+      animation: dangerPulse 1.5s infinite;
+    }
+
+    /* Slope Artificial Horizon Widget */
+    .incline-beam {
+      transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+      transform-origin: center center;
+    }
+  </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen flex flex-col font-sans">
+
+  <!-- ================= TOP NAVIGATION BAR ================= -->
+  <header class="bg-white/80 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+      
+      <!-- Brand & Project Details -->
+      <div class="flex items-center gap-3.5">
+        <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-400 text-white flex items-center justify-center shadow-md shadow-emerald-500/20">
+          <i class="fa-solid fa-mountain text-xl"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-lg font-extrabold tracking-tight text-slate-900">Landslide Sentinel</h1>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              Live Geotechnical Node
+            </span>
+          </div>
+          <p class="text-xs text-slate-500 font-medium">Real-Time Landslide Early Warning & Slope Stability Monitor</p>
+        </div>
+      </div>
+
+      <!-- Controls: Wi-Fi IP Connect, USB & Controls -->
+      <div class="flex flex-wrap items-center gap-2.5">
+        
+        <!-- Wi-Fi IP Connect Box -->
+        <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl p-1 shadow-subtle">
+          <div class="flex items-center gap-1.5 pl-2 pr-1.5 py-1 text-slate-500 text-xs font-semibold">
+            <i class="fa-solid fa-wifi text-cyan-600"></i>
+            <span>ESP IP:</span>
+          </div>
+          <input 
+            id="espIpInput" 
+            type="text" 
+            value="192.168.4.1" 
+            placeholder="192.168.4.1" 
+            class="bg-white text-slate-800 text-xs font-mono font-medium px-2.5 py-1 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 w-28 text-center" 
+          />
+          <button 
+            id="btnConnectIp" 
+            class="ml-1 px-3 py-1 bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all duration-150 flex items-center gap-1.5 cursor-pointer"
+          >
+            <span id="btnConnectIpText">Connect Wi-Fi</span>
+          </button>
+        </div>
+
+        <!-- Optional USB Cable Connect -->
+        <button 
+          id="btnConnectSerial" 
+          class="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-xl border border-slate-200 shadow-subtle transition flex items-center gap-1.5 cursor-pointer" 
+          title="Alternative: Connect via USB Cable (Web Serial)"
+        >
+          <i class="fa-brands fa-usb text-slate-400"></i>
+          <span id="btnConnectText">USB Port</span>
+        </button>
+
+        <select id="baudRateSelect" class="hidden">
+          <option value="115200" selected>115200</option>
+        </select>
+
+        <!-- Demo Mode Button -->
+        <button 
+          id="btnToggleDemo" 
+          class="px-3 py-1.5 bg-white hover:bg-amber-50/60 text-slate-700 hover:text-amber-800 text-xs font-semibold rounded-xl border border-slate-200 shadow-subtle transition flex items-center gap-1.5 cursor-pointer"
+          title="Test system with simulated geotechnical events"
+        >
+          <i class="fa-solid fa-flask text-amber-500"></i>
+          <span id="demoBtnText">Demo Mode</span>
+        </button>
+
+        <!-- Alarm Mute Toggle -->
+        <button 
+          id="btnToggleAudio" 
+          class="p-2 bg-white hover:bg-slate-50 text-slate-600 rounded-xl border border-slate-200 shadow-subtle transition cursor-pointer" 
+          title="Toggle Emergency Alarm Sound"
+        >
+          <i id="audioIcon" class="fa-solid fa-volume-high text-xs text-slate-600"></i>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ================= MAIN CONTAINER ================= -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 flex-1">
+
+    <!-- Overall Landslide Hazard Assessment Banner -->
+    <div id="riskBanner" class="p-5 sm:p-6 rounded-2xl bg-white border border-emerald-200 shadow-card flex flex-col md:flex-row items-start md:items-center justify-between gap-5 transition-all duration-300">
+      <div class="flex items-center gap-4 sm:gap-5">
+        <div id="riskIconContainer" class="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200/80 flex items-center justify-center text-2xl shadow-subtle">
+          <i id="riskIcon" class="fa-solid fa-shield-halved"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Hazard Threat Level:</span>
+            <span id="riskBadge" class="px-2.5 py-0.5 text-xs font-extrabold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+              SAFE (NORMAL)
+            </span>
+          </div>
+          <h2 id="riskTitle" class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">Stable Slope Condition — No Threat Detected</h2>
+          <p id="riskDesc" class="text-xs sm:text-sm text-slate-500 font-medium">Volumetric soil moisture, rain precipitation, and slope inclination angles are within safe structural thresholds.</p>
+        </div>
+      </div>
+      
+      <div class="flex items-center gap-4 self-stretch md:self-auto justify-between md:justify-end border-t md:border-t-0 pt-3 md:pt-0 border-slate-100">
+        <div class="text-left md:text-right">
+          <div class="text-[11px] font-medium text-slate-600">Last Telemetry:</div>
+          <div id="lastUpdateTime" class="text-xs font-mono font-semibold text-slate-800">Not Connected</div>
+        </div>
+        <div id="connectionStatusIndicator" class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-600">
+          <span class="w-2.5 h-2.5 rounded-full bg-slate-400" id="liveDot"></span>
+          <span id="liveStatusText">Offline</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= 4 METRIC CARDS ================= -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+
+      <!-- 1. Soil Moisture Card -->
+      <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-card hover:shadow-card-hover transition-all duration-200 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center text-sm shadow-subtle">
+                <i class="fa-solid fa-droplet"></i>
+              </div>
+              <div>
+                <h3 class="font-bold text-slate-900 text-sm">Soil Moisture</h3>
+                <span class="text-[11px] text-slate-600 font-medium">Subsurface Saturation</span>
+              </div>
+            </div>
+            <span id="soilStatusBadge" class="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+              Optimal
+            </span>
+          </div>
+
+          <div class="my-4 flex items-baseline justify-between">
+            <div class="flex items-baseline">
+              <span id="soilValue" class="text-4xl font-extrabold text-slate-900 tracking-tight">0</span>
+              <span class="text-slate-600 text-lg font-bold ml-1">%</span>
+            </div>
+            <div class="text-right text-[11px] font-mono text-slate-600">
+              <div>ADC Raw: <span id="soilRawValue" class="text-slate-800 font-bold">4095</span></div>
+              <div>Limit: &gt;75%</div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden p-0.5 border border-slate-200/60">
+            <div id="soilBar" class="bg-gradient-to-r from-emerald-500 to-teal-500 h-1.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+          </div>
+          <div class="flex justify-between text-[10px] text-slate-600 mt-1.5 font-medium">
+            <span>Dry (0%)</span>
+            <span>Moist (50%)</span>
+            <span>Saturated (100%)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Rain Water Sensor Card -->
+      <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-card hover:shadow-card-hover transition-all duration-200 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-xl bg-sky-50 text-sky-600 border border-sky-100 flex items-center justify-center text-sm shadow-subtle">
+                <i class="fa-solid fa-cloud-showers-heavy"></i>
+              </div>
+              <div>
+                <h3 class="font-bold text-slate-900 text-sm">Precipitation</h3>
+                <span class="text-[11px] text-slate-600 font-medium">Rainfall Intensity</span>
+              </div>
+            </div>
+            <span id="rainStatusBadge" class="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
+              Dry
+            </span>
+          </div>
+
+          <div class="my-4 flex items-baseline justify-between">
+            <div class="flex items-baseline">
+              <span id="rainValue" class="text-4xl font-extrabold text-slate-900 tracking-tight">0</span>
+              <span class="text-slate-600 text-lg font-bold ml-1">%</span>
+            </div>
+            <div class="text-right text-[11px] text-slate-600">
+              <div>State: <span id="rainIntensity" class="text-slate-800 font-bold">No Rain</span></div>
+              <div class="font-mono">Raw: <span id="rainRawValue" class="text-slate-700">4095</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden p-0.5 border border-slate-200/60">
+            <div id="rainBar" class="bg-gradient-to-r from-sky-400 to-blue-500 h-1.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+          </div>
+          <div class="flex justify-between text-[10px] text-slate-600 mt-1.5 font-medium">
+            <span>0% (Dry)</span>
+            <span>50% (Showers)</span>
+            <span>100% (Torrential)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. MPU6050 Slope Tilt & Inclinometer Card -->
+      <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-card hover:shadow-card-hover transition-all duration-200 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 border border-purple-100 flex items-center justify-center text-sm shadow-subtle">
+                <i class="fa-solid fa-compass"></i>
+              </div>
+              <div>
+                <h3 class="font-bold text-slate-900 text-sm">MPU6050 Slope Tilt</h3>
+                <span class="text-[11px] text-slate-600 font-medium">Pitch & Horizon Angle</span>
+              </div>
+            </div>
+            <span id="tiltStatusBadge" class="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+              Stable
+            </span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 my-2">
+            <div class="bg-slate-50 border border-slate-100 rounded-xl p-2.5 text-center">
+              <span class="text-[10px] font-semibold text-slate-600 uppercase tracking-wider block">Pitch (X)</span>
+              <span id="pitchValue" class="text-xl font-bold font-mono text-purple-700">0.0°</span>
+            </div>
+            <div class="bg-slate-50 border border-slate-100 rounded-xl p-2.5 text-center">
+              <span class="text-[10px] font-semibold text-slate-600 uppercase tracking-wider block">Roll (Y)</span>
+              <span id="rollValue" class="text-xl font-bold font-mono text-indigo-700">0.0°</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Slope Dynamic Artificial Horizon Line -->
+        <div class="mt-2 bg-slate-50 rounded-xl p-2.5 border border-slate-100 flex items-center justify-between">
+          <div class="text-xs">
+            <span class="text-slate-600 font-medium">Net Shift: </span>
+            <span id="totalTiltAngle" class="font-mono font-bold text-slate-900">0.0°</span>
+          </div>
+          <!-- Incline Line -->
+          <div class="w-20 h-6 bg-white rounded-lg border border-slate-200 flex items-center justify-center overflow-hidden relative shadow-inner">
+            <div class="w-12 h-0.5 bg-slate-300 absolute"></div>
+            <div id="tiltIndicatorLine" class="w-14 h-1 bg-purple-600 rounded-full incline-beam" style="transform: rotate(0deg);"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Geotechnical Composite Hazard Risk Index Card -->
+      <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-card hover:shadow-card-hover transition-all duration-200 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 border border-amber-100 flex items-center justify-center text-sm shadow-subtle">
+                <i class="fa-solid fa-gauge-high"></i>
+              </div>
+              <div>
+                <h3 class="font-bold text-slate-900 text-sm">Hazard Index</h3>
+                <span class="text-[11px] text-slate-600 font-medium">Multi-Factor Risk Score</span>
+              </div>
+            </div>
+            <span id="mpuTempBadge" class="text-[11px] font-mono font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700">
+              <i class="fa-solid fa-temperature-half text-amber-500 mr-0.5"></i> <span id="tempValue">28.0°C</span>
+            </span>
+          </div>
+
+          <div class="my-3 flex items-center justify-between">
+            <div>
+              <div class="flex items-baseline">
+                <span id="riskScoreValue" class="text-4xl font-extrabold text-slate-900 tracking-tight">12</span>
+                <span class="text-slate-600 text-sm font-bold ml-1">/ 100</span>
+              </div>
+              <span id="riskScoreLabel" class="text-xs font-bold text-emerald-600">Low Hazard Probability</span>
+            </div>
+            
+            <!-- Circular Gauge Preview -->
+            <div class="relative w-14 h-14 flex items-center justify-center">
+              <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                <path class="text-slate-100" stroke-width="3.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                <path id="riskCircleSvg" class="text-emerald-500 transition-all duration-300" stroke-dasharray="12, 100" stroke-width="3.5" stroke-linecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+              </svg>
+              <i id="riskScoreIcon" class="fa-solid fa-check text-emerald-600 absolute text-sm"></i>
+            </div>
+          </div>
+        </div>
+
+        <div class="text-[11px] text-slate-600 bg-slate-50 p-2 rounded-xl border border-slate-100">
+          Threshold Trigger: <strong class="text-slate-700">&gt; 70 Critical</strong>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ================= LIVE TIMELINE CHARTS ================= -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      
+      <!-- Chart 1: Soil Moisture & Precipitation Timeline -->
+      <div class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-card">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs font-bold">
+              <i class="fa-solid fa-chart-line"></i>
+            </div>
+            <div>
+              <h3 class="font-bold text-slate-900 text-sm">Hydrological Saturation Timeline</h3>
+              <p class="text-[11px] text-slate-600 font-medium">Real-time Soil Moisture & Rain Precipitation (%)</p>
+            </div>
+          </div>
+          <span class="text-[11px] font-mono text-slate-600 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">30s Window</span>
+        </div>
+        <div class="h-64 w-full">
+          <canvas id="moistureRainChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Chart 2: Ground Slope Tilt Timeline -->
+      <div class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-card">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center text-xs font-bold">
+              <i class="fa-solid fa-chart-area"></i>
+            </div>
+            <div>
+              <h3 class="font-bold text-slate-900 text-sm">Slope Incline & Displacement Trend</h3>
+              <p class="text-[11px] text-slate-600 font-medium">Pitch (X) and Roll (Y) Ground Angles in Degrees (°)</p>
+            </div>
+          </div>
+          <span class="text-[11px] font-mono text-slate-600 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">Angle (°)</span>
+        </div>
+        <div class="h-64 w-full">
+          <canvas id="tiltChart"></canvas>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ================= DIAGNOSTICS & TELEMETRY TERMINAL ================= -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+      <!-- Early Warning Evaluation Criteria & Interactive Test Triggers -->
+      <div class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-card flex flex-col justify-between space-y-4">
+        <div>
+          <div class="flex items-center gap-2.5 mb-3">
+            <div class="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center text-xs">
+              <i class="fa-solid fa-sliders"></i>
+            </div>
+            <h3 class="font-bold text-slate-900 text-sm">Slope Hazard Criteria</h3>
+          </div>
+
+          <div class="space-y-2 text-xs">
+            <div class="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200/60 flex items-start gap-2.5 text-emerald-900">
+              <i class="fa-solid fa-circle-check text-emerald-600 mt-0.5 text-xs"></i>
+              <div>
+                <strong class="font-bold text-emerald-800">Normal (Safe):</strong> Moisture &lt; 65%, Rain &lt; 50%, Slope Tilt &lt; 15°.
+              </div>
+            </div>
+
+            <div class="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200/70 flex items-start gap-2.5 text-amber-900">
+              <i class="fa-solid fa-triangle-exclamation text-amber-600 mt-0.5 text-xs"></i>
+              <div>
+                <strong class="font-bold text-amber-800">Warning (Advisory):</strong> High moisture OR persistent rain OR slope angle 15°–25°.
+              </div>
+            </div>
+
+            <div class="p-2.5 rounded-xl bg-rose-50/70 border border-rose-200 flex items-start gap-2.5 text-rose-900">
+              <i class="fa-solid fa-skull-crossbones text-rose-600 mt-0.5 text-xs"></i>
+              <div>
+                <strong class="font-bold text-rose-800">Critical (Evacuation):</strong> Saturated soil (&gt;75%) + Heavy rain + Sudden slope displacement (&gt;25°).
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 1-Click Simulation Triggers -->
+        <div class="pt-3 border-t border-slate-100">
+          <span class="text-[11px] font-bold text-slate-600 uppercase tracking-wider block mb-2">Simulate Disaster Scenarios:</span>
+          <div class="grid grid-cols-3 gap-2">
+            <button onclick="setSimScenario('safe')" class="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800 border border-emerald-300/80 transition cursor-pointer">
+              Safe
+            </button>
+            <button onclick="setSimScenario('warning')" class="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-300 transition cursor-pointer">
+              Warning
+            </button>
+            <button onclick="setSimScenario('danger')" class="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-rose-600 hover:bg-rose-700 text-white shadow-sm transition animate-pulse cursor-pointer">
+              Landslide!
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live ESP32 Telemetry Terminal -->
+      <div class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-card lg:col-span-2 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-lg bg-slate-900 text-emerald-400 flex items-center justify-center text-xs font-mono">
+                &gt;_
+              </div>
+              <div>
+                <h3 class="font-bold text-slate-900 text-sm">Live ESP32 Telemetry Feed</h3>
+                <span class="text-[11px] text-slate-600 font-medium">Real-Time HTTP / Serial Data Stream</span>
+              </div>
+            </div>
+            
+            <div class="flex items-center gap-2">
+              <span id="rxByteCounter" class="text-[11px] font-mono text-slate-600 bg-slate-100 px-2 py-1 rounded-md">0 packets</span>
+              <button onclick="clearTerminal()" class="text-xs font-semibold text-slate-500 hover:text-slate-800 px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 transition cursor-pointer">
+                Clear
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Terminal Output Screen -->
+        <div id="serialTerminal" class="bg-slate-950 font-mono text-xs text-emerald-400 p-3.5 rounded-xl border border-slate-800 h-48 overflow-y-auto space-y-1.5 shadow-inner">
+          <div class="text-slate-500">// System initialized. Enter your ESP32 IP above or toggle Demo Mode.</div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ================= JAVASCRIPT LOGIC ================= -->
+  <script>
+    // State
+    let isConnected = false;
+    let isDemoMode = false;
+    let demoInterval = null;
+    let ipPollInterval = null;
+    let isIpConnected = false;
+    let serialPort = null;
+    let reader = null;
+    let keepReading = false;
+    let audioEnabled = true;
+    let audioCtx = null;
+    let packetCount = 0;
+
+    let sensorData = {
+      soil: 28,
+      soilRaw: 3200,
+      rain: 0,
+      rainRaw: 4095,
+      pitch: 1.2,
+      roll: 0.5,
+      temperature: 28.5,
+      tiltTotal: 1.3,
+      riskScore: 12,
+      riskLevel: "NORMAL"
+    };
+
+    // Initialize Chart.js with Clean Light Theme Styling
+    const maxDataPoints = 25;
+    const timeLabels = Array(maxDataPoints).fill('');
+
+    // Chart 1: Moisture & Rain
+    const ctx1 = document.getElementById('moistureRainChart').getContext('2d');
+    const moistureRainChart = new Chart(ctx1, {
+      type: 'line',
+      data: {
+        labels: [...timeLabels],
+        datasets: [
+          {
+            label: 'Soil Moisture (%)',
+            data: Array(maxDataPoints).fill(28),
+            borderColor: '#059669', // Emerald 600
+            backgroundColor: 'rgba(16, 185, 129, 0.08)',
+            fill: true,
+            tension: 0.35,
+            borderWidth: 2.2,
+            pointRadius: 1
+          },
+          {
+            label: 'Rainfall (%)',
+            data: Array(maxDataPoints).fill(0),
+            borderColor: '#0284c7', // Sky 600
+            backgroundColor: 'rgba(2, 132, 199, 0.06)',
+            fill: true,
+            tension: 0.35,
+            borderWidth: 2.2,
+            pointRadius: 1
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            min: 0,
+            max: 100,
+            grid: { color: 'rgba(148, 163, 184, 0.12)' },
+            ticks: { color: '#64748b', font: { family: '"JetBrains Mono"', size: 10 } }
+          },
+          x: {
+            grid: { display: false },
+            ticks: { display: false }
+          }
+        },
+        plugins: {
+          legend: {
+            position: 'top',
+            align: 'end',
+            labels: { color: '#334155', boxWidth: 10, font: { family: '"Plus Jakarta Sans"', size: 11, weight: '600' } }
+          }
+        }
+      }
+    });
+
+    // Chart 2: Pitch & Roll Tilt
+    const ctx2 = document.getElementById('tiltChart').getContext('2d');
+    const tiltChart = new Chart(ctx2, {
+      type: 'line',
+      data: {
+        labels: [...timeLabels],
+        datasets: [
+          {
+            label: 'Pitch X (°)',
+            data: Array(maxDataPoints).fill(1.2),
+            borderColor: '#7c3aed', // Purple 600
+            tension: 0.35,
+            borderWidth: 2,
+            pointRadius: 1
+          },
+          {
+            label: 'Roll Y (°)',
+            data: Array(maxDataPoints).fill(0.5),
+            borderColor: '#4f46e5', // Indigo 600
+            tension: 0.35,
+            borderWidth: 2,
+            pointRadius: 1
+          },
+          {
+            label: 'Net Shift (°)',
+            data: Array(maxDataPoints).fill(1.3),
+            borderColor: '#e11d48', // Rose 600
+            borderDash: [4, 4],
+            tension: 0.35,
+            borderWidth: 1.5,
+            pointRadius: 1
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            min: -40,
+            max: 40,
+            grid: { color: 'rgba(148, 163, 184, 0.12)' },
+            ticks: { color: '#64748b', font: { family: '"JetBrains Mono"', size: 10 } }
+          },
+          x: {
+            grid: { display: false },
+            ticks: { display: false }
+          }
+        },
+        plugins: {
+          legend: {
+            position: 'top',
+            align: 'end',
+            labels: { color: '#334155', boxWidth: 10, font: { family: '"Plus Jakarta Sans"', size: 11, weight: '600' } }
+          }
+        }
+      }
+    });
+
+    // Sound Synthesizer for Emergency Warning
+    function playAlarmSound() {
+      if (!audioEnabled) return;
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(450, audioCtx.currentTime + 0.3);
+        gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.3);
+      } catch (e) {}
+    }
+
+    document.getElementById('btnToggleAudio').addEventListener('click', () => {
+      audioEnabled = !audioEnabled;
+      const icon = document.getElementById('audioIcon');
+      if (audioEnabled) {
+        icon.className = 'fa-solid fa-volume-high text-xs text-slate-600';
+      } else {
+        icon.className = 'fa-solid fa-volume-xmark text-xs text-rose-500';
+      }
+    });
+
+    // Calculate Geotechnical Landslide Vulnerability Score (0 - 100)
+    function calculateHazardScore(soil, rain, tilt) {
+      let score = 0;
+      // Soil Moisture Factor (0 - 40 pts)
+      score += Math.min(40, (soil / 100) * 40);
+      // Precipitation Factor (0 - 35 pts)
+      score += Math.min(35, (rain / 100) * 35);
+      // Slope Incline Factor (0 - 25 pts)
+      score += Math.min(25, (Math.abs(tilt) / 30) * 25);
+      return Math.round(score);
+    }
+
+    // Evaluate Risk Tier
+    function evaluateRiskTier(soil, rain, tilt, score) {
+      if (score >= 70 || (soil >= 75 && (rain >= 60 || tilt >= 25)) || tilt >= 30) {
+        return "DANGER";
+      } else if (score >= 45 || soil >= 65 || rain >= 45 || tilt >= 15) {
+        return "WARNING";
+      } else {
+        return "NORMAL";
+      }
+    }
+
+    // Update Dashboard UI
+    function updateDashboardUI() {
+      // 1. Soil Moisture
+      document.getElementById('soilValue').innerText = Math.round(sensorData.soil);
+      document.getElementById('soilRawValue').innerText = sensorData.soilRaw;
+      document.getElementById('soilBar').style.width = Math.min(100, Math.max(0, sensorData.soil)) + '%';
+      
+      const soilBadge = document.getElementById('soilStatusBadge');
+      if (sensorData.soil > 75) {
+        soilBadge.innerText = 'Waterlogged';
+        soilBadge.className = 'text-[11px] font-semibold px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200';
+      } else if (sensorData.soil > 45) {
+        soilBadge.innerText = 'Moist Soil';
+        soilBadge.className = 'text-[11px] font-semibold px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200';
+      } else {
+        soilBadge.innerText = 'Optimal';
+        soilBadge.className = 'text-[11px] font-semibold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200/60';
+      }
+
+      // 2. Rain Sensor
+      document.getElementById('rainValue').innerText = Math.round(sensorData.rain);
+      document.getElementById('rainRawValue').innerText = sensorData.rainRaw;
+      document.getElementById('rainBar').style.width = Math.min(100, Math.max(0, sensorData.rain)) + '%';
+
+      const rainBadge = document.getElementById('rainStatusBadge');
+      const rainIntensity = document.getElementById('rainIntensity');
+      if (sensorData.rain > 65) {
+        rainBadge.innerText = 'Heavy Torrential';
+        rainBadge.className = 'text-[11px] font-semibold px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200';
+        rainIntensity.innerText = 'Heavy Downpour';
+      } else if (sensorData.rain > 20) {
+        rainBadge.innerText = 'Showers';
+        rainBadge.className = 'text-[11px] font-semibold px-2 py-0.5 rounded-md bg-sky-50 text-sky-700 border border-sky-200';
+        rainIntensity.innerText = 'Moderate Rain';
+      } else {
+        rainBadge.innerText = 'Dry';
+        rainBadge.className = 'text-[11px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600';
+        rainIntensity.innerText = 'No Rain';
+      }
+
+      // 3. MPU6050 Pitch, Roll & Inclinometer
+      document.getElementById('pitchValue').innerText = sensorData.pitch.toFixed(1) + '°';
+      document.getElementById('rollValue').innerText = sensorData.roll.toFixed(1) + '°';
+      
+      const totalTilt = Math.sqrt(sensorData.pitch * sensorData.pitch + sensorData.roll * sensorData.roll);
+      sensorData.tiltTotal = totalTilt;
+      document.getElementById('totalTiltAngle').innerText = totalTilt.toFixed(1) + '°';
+
+      const tiltIndicator = document.getElementById('tiltIndicatorLine');
+      tiltIndicator.style.transform = `rotate(${Math.max(-45, Math.min(45, sensorData.pitch))}deg)`;
+
+      const tiltBadge = document.getElementById('tiltStatusBadge');
+      if (totalTilt > 25) {
+        tiltBadge.innerText = 'Critical Shift!';
+        tiltBadge.className = 'text-[11px] font-semibold px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200 animate-pulse';
+      } else if (totalTilt > 12) {
+        tiltBadge.innerText = 'Minor Movement';
+        tiltBadge.className = 'text-[11px] font-semibold px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200';
+      } else {
+        tiltBadge.innerText = 'Stable';
+        tiltBadge.className = 'text-[11px] font-semibold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200/60';
+      }
+
+      if (sensorData.temperature !== undefined) {
+        document.getElementById('tempValue').innerText = sensorData.temperature.toFixed(1) + '°C';
+      }
+
+      // 4. Hazard Risk Index Score & Gauge
+      const score = calculateHazardScore(sensorData.soil, sensorData.rain, totalTilt);
+      sensorData.riskScore = score;
+      document.getElementById('riskScoreValue').innerText = score;
+      
+      const riskTier = evaluateRiskTier(sensorData.soil, sensorData.rain, totalTilt, score);
+      sensorData.riskLevel = riskTier;
+
+      const riskCircle = document.getElementById('riskCircleSvg');
+      const riskScoreLabel = document.getElementById('riskScoreLabel');
+      const riskScoreIcon = document.getElementById('riskScoreIcon');
+      riskCircle.setAttribute('stroke-dasharray', `${score}, 100`);
+
+      if (riskTier === "DANGER") {
+        riskCircle.setAttribute('class', 'text-rose-500 transition-all duration-300');
+        riskScoreLabel.innerText = "Severe Hazard Risk";
+        riskScoreLabel.className = "text-xs font-bold text-rose-600";
+        riskScoreIcon.className = "fa-solid fa-triangle-exclamation text-rose-600 absolute text-sm";
+      } else if (riskTier === "WARNING") {
+        riskCircle.setAttribute('class', 'text-amber-500 transition-all duration-300');
+        riskScoreLabel.innerText = "Moderate Hazard Risk";
+        riskScoreLabel.className = "text-xs font-bold text-amber-600";
+        riskScoreIcon.className = "fa-solid fa-circle-exclamation text-amber-600 absolute text-sm";
+      } else {
+        riskCircle.setAttribute('class', 'text-emerald-500 transition-all duration-300');
+        riskScoreLabel.innerText = "Low Hazard Probability";
+        riskScoreLabel.className = "text-xs font-bold text-emerald-600";
+        riskScoreIcon.className = "fa-solid fa-check text-emerald-600 absolute text-sm";
+      }
+
+      // Update Risk Banner
+      updateRiskBanner(riskTier);
+
+      // Update Charts
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+      moistureRainChart.data.labels.push(timeStr);
+      moistureRainChart.data.labels.shift();
+      moistureRainChart.data.datasets[0].data.push(sensorData.soil);
+      moistureRainChart.data.datasets[0].data.shift();
+      moistureRainChart.data.datasets[1].data.push(sensorData.rain);
+      moistureRainChart.data.datasets[1].data.shift();
+      moistureRainChart.update('none');
+
+      tiltChart.data.labels.push(timeStr);
+      tiltChart.data.labels.shift();
+      tiltChart.data.datasets[0].data.push(sensorData.pitch);
+      tiltChart.data.datasets[0].data.shift();
+      tiltChart.data.datasets[1].data.push(sensorData.roll);
+      tiltChart.data.datasets[1].data.shift();
+      tiltChart.data.datasets[2].data.push(totalTilt);
+      tiltChart.data.datasets[2].data.shift();
+      tiltChart.update('none');
+
+      document.getElementById('lastUpdateTime').innerText = timeStr;
+    }
+
+    // Update Overall Landslide Banner
+    function updateRiskBanner(risk) {
+      const banner = document.getElementById('riskBanner');
+      const badge = document.getElementById('riskBadge');
+      const icon = document.getElementById('riskIcon');
+      const iconBox = document.getElementById('riskIconContainer');
+      const title = document.getElementById('riskTitle');
+      const desc = document.getElementById('riskDesc');
+
+      banner.classList.remove('danger-active');
+
+      if (risk === "DANGER") {
+        banner.className = 'p-5 sm:p-6 rounded-2xl bg-rose-50 border-2 border-rose-400 shadow-danger flex flex-col md:flex-row items-start md:items-center justify-between gap-5 transition-all duration-300 danger-active';
+        badge.className = 'px-3 py-0.5 text-xs font-extrabold rounded-full bg-rose-600 text-white uppercase tracking-wider animate-bounce';
+        badge.innerText = '🚨 CRITICAL: LANDSLIDE IMMINENT ALERT!';
+        iconBox.className = 'w-14 h-14 rounded-2xl bg-rose-600 text-white flex items-center justify-center text-2xl shadow-md animate-pulse';
+        icon.className = 'fa-solid fa-triangle-exclamation';
+        title.innerText = 'CRITICAL THREAT: SLOPE INSTABILITY DETECTED';
+        desc.innerText = 'Dangerous soil saturation, severe precipitation, and critical slope movement detected. Immediate safety measures advised!';
+        playAlarmSound();
+      } else if (risk === "WARNING") {
+        banner.className = 'p-5 sm:p-6 rounded-2xl bg-amber-50/80 border border-amber-300 shadow-card flex flex-col md:flex-row items-start md:items-center justify-between gap-5 transition-all duration-300';
+        badge.className = 'px-2.5 py-0.5 text-xs font-bold rounded-full bg-amber-100 text-amber-800 border border-amber-300 uppercase tracking-wider';
+        badge.innerText = '⚠️ WARNING: ELEVATED RISK';
+        iconBox.className = 'w-14 h-14 rounded-2xl bg-amber-100 text-amber-700 border border-amber-200 flex items-center justify-center text-2xl shadow-subtle';
+        icon.className = 'fa-solid fa-circle-exclamation';
+        title.innerText = 'Advisory Condition: Moderate Slope Hazard Watch';
+        desc.innerText = 'Elevated soil moisture or rainfall detected. Ongoing continuous slope displacement monitoring.';
+      } else {
+        banner.className = 'p-5 sm:p-6 rounded-2xl bg-white border border-emerald-200 shadow-card flex flex-col md:flex-row items-start md:items-center justify-between gap-5 transition-all duration-300';
+        badge.className = 'px-2.5 py-0.5 text-xs font-extrabold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200';
+        badge.innerText = 'SAFE (NORMAL)';
+        iconBox.className = 'w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200/80 flex items-center justify-center text-2xl shadow-subtle';
+        icon.className = 'fa-solid fa-shield-halved';
+        title.innerText = 'Stable Slope Condition — No Threat Detected';
+        desc.innerText = 'Volumetric soil moisture, rain precipitation, and slope inclination angles are within safe structural thresholds.';
+      }
+    }
+
+    // Terminal Logging
+    function logToTerminal(text, type = "data") {
+      const term = document.getElementById('serialTerminal');
+      const line = document.createElement('div');
+      packetCount++;
+      document.getElementById('rxByteCounter').innerText = `${packetCount} packets`;
+
+      if (type === "error") line.className = "text-rose-400";
+      else if (type === "info") line.className = "text-amber-300";
+      else line.className = "text-emerald-400";
+
+      const time = new Date().toLocaleTimeString();
+      line.innerText = `[${time}] ${text}`;
+      term.appendChild(line);
+      term.scrollTop = term.scrollHeight;
+
+      if (term.childNodes.length > 80) term.removeChild(term.firstChild);
+    }
+
+    function clearTerminal() {
+      document.getElementById('serialTerminal').innerHTML = '';
+      packetCount = 0;
+      document.getElementById('rxByteCounter').innerText = '0 packets';
+    }
+
+    // Sensor Data Parser
+    function parseIncomingSensorData(rawLine) {
+      rawLine = rawLine.trim();
+      if (!rawLine) return;
+      logToTerminal(rawLine);
+
+      try {
+        if (rawLine.startsWith('{') && rawLine.endsWith('}')) {
+          const parsed = JSON.parse(rawLine);
+          if (parsed.soil !== undefined) {
+            let s = Number(parsed.soil);
+            sensorData.soil = (s > 100) ? Math.max(0, Math.min(100, Math.round(((4095 - s) / 3000) * 100))) : s;
+            sensorData.soilRaw = parsed.soil_raw !== undefined ? Number(parsed.soil_raw) : s;
+          }
+          if (parsed.rain !== undefined) {
+            let r = Number(parsed.rain);
+            sensorData.rain = (r > 100) ? Math.max(0, Math.min(100, Math.round(((4095 - r) / 3000) * 100))) : r;
+            sensorData.rainRaw = parsed.rain_raw !== undefined ? Number(parsed.rain_raw) : r;
+          }
+          if (parsed.pitch !== undefined) sensorData.pitch = Number(parsed.pitch);
+          if (parsed.roll !== undefined) sensorData.roll = Number(parsed.roll);
+          if (parsed.tilt !== undefined) {
+            sensorData.pitch = Number(parsed.tilt);
+            sensorData.roll = 0.0;
+          }
+          if (parsed.temp !== undefined) sensorData.temperature = Number(parsed.temp);
+          if (parsed.status !== undefined) sensorData.riskLevel = parsed.status;
+          updateDashboardUI();
+          return;
+        }
+
+        if (rawLine.includes(':')) {
+          const [keyPart, valPart] = rawLine.split(':');
+          const key = keyPart.trim().toUpperCase();
+          const val = parseFloat(valPart.trim());
+          if (!isNaN(val)) {
+            if (key === 'RAIN') {
+              sensorData.rainRaw = val;
+              sensorData.rain = (val > 100) ? Math.max(0, Math.min(100, Math.round(((4095 - val) / 3000) * 100))) : val;
+            } else if (key === 'SOIL') {
+              sensorData.soilRaw = val;
+              sensorData.soil = (val > 100) ? Math.max(0, Math.min(100, Math.round(((4095 - val) / 3000) * 100))) : val;
+            } else if (key === 'TILT') {
+              sensorData.pitch = val;
+            } else if (key === 'TEMPERATURE' || key === 'TEMP') {
+              sensorData.temperature = val;
+            }
+            updateDashboardUI();
+            return;
+          }
+        }
+      } catch (err) {}
+    }
+
+    // ================= WI-FI IP CONNECTION =================
+    async function toggleIpConnection() {
+      if (isIpConnected) {
+        disconnectIp();
+        return;
+      }
+
+      const ipInput = document.getElementById('espIpInput');
+      const ip = (ipInput ? ipInput.value.trim() : '') || '192.168.4.1';
+
+      logToTerminal(`Connecting to ESP32 at http://${ip}/api/data ...`, "info");
+      if (isDemoMode) stopDemo();
+
+      const btn = document.getElementById('btnConnectIp');
+      const btnText = document.getElementById('btnConnectIpText');
+      if (btnText) btnText.innerText = "Connecting...";
+
+      async function fetchEspData() {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 1500);
+          const res = await fetch(`http://${ip}/api/data`, { signal: controller.signal });
+          clearTimeout(timeoutId);
+          if (res.ok) return await res.json();
+        } catch (e) {
+          try {
+            const res2 = await fetch(`/api/esp_proxy?ip=${ip}`);
+            if (res2.ok) return await res2.json();
+          } catch (e2) {}
+        }
+        throw new Error("Unable to reach ESP32 at " + ip);
+      }
+
+      try {
+        const initialData = await fetchEspData();
+        isIpConnected = true;
+        isConnected = true;
+        updateConnectionStatus(true, `Wi-Fi: ${ip}`);
+        logToTerminal(`Connected to ESP32 Wi-Fi Node at ${ip}!`, "info");
+        parseIncomingSensorData(JSON.stringify(initialData));
+
+        if (btn) btn.className = "ml-1 px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg shadow-sm transition flex items-center gap-1.5 cursor-pointer";
+        if (btnText) btnText.innerText = "Disconnect";
+
+        ipPollInterval = setInterval(async () => {
+          try {
+            const data = await fetchEspData();
+            parseIncomingSensorData(JSON.stringify(data));
+          } catch (err) {
+            logToTerminal(`Wi-Fi error from ${ip}: ${err.message}`, "error");
+          }
+        }, 700);
+
+      } catch (err) {
+        logToTerminal(`Failed to connect to ${ip}: ${err.message}`, "error");
+        updateConnectionStatus(false, "Offline");
+        if (btn) btn.className = "ml-1 px-3 py-1 bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold rounded-lg shadow-sm transition flex items-center gap-1.5 cursor-pointer";
+        if (btnText) btnText.innerText = "Connect Wi-Fi";
+        alert(`Could not connect to ESP32 at ${ip}.\n\nPlease ensure:\n1. Your laptop/PC is connected to Wi-Fi: "ESP32_LANDSLIDE_NODE"\n2. The ESP32 is powered on.`);
+      }
+    }
+
+    function disconnectIp() {
+      if (ipPollInterval) {
+        clearInterval(ipPollInterval);
+        ipPollInterval = null;
+      }
+      isIpConnected = false;
+      isConnected = false;
+      const btn = document.getElementById('btnConnectIp');
+      const btnText = document.getElementById('btnConnectIpText');
+      if (btn) btn.className = "ml-1 px-3 py-1 bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold rounded-lg shadow-sm transition flex items-center gap-1.5 cursor-pointer";
+      if (btnText) btnText.innerText = "Connect Wi-Fi";
+      updateConnectionStatus(false, "Disconnected");
+      logToTerminal("Disconnected from ESP32 Wi-Fi.", "info");
+    }
+
+    document.getElementById('btnConnectIp').addEventListener('click', toggleIpConnection);
+
+    // ================= USB WEB SERIAL CONNECTION =================
+    async function toggleSerialConnection() {
+      if (isConnected) {
+        disconnectSerial();
+        return;
+      }
+      if (!("serial" in navigator)) {
+        alert("Web Serial is supported in Google Chrome, Microsoft Edge, or Opera.");
+        return;
+      }
+      try {
+        const baudRate = 115200;
+        logToTerminal(`Opening USB Serial Port at ${baudRate} baud...`, "info");
+        serialPort = await navigator.serial.requestPort();
+        await serialPort.open({ baudRate: baudRate });
+
+        isConnected = true;
+        updateConnectionStatus(true, "USB Connected");
+        logToTerminal("USB Serial Port connected successfully!", "info");
+        if (isDemoMode) stopDemo();
+
+        keepReading = true;
+        readSerialStream();
+      } catch (err) {
+        logToTerminal("USB Serial failed: " + err.message, "error");
+        updateConnectionStatus(false, "Offline");
+      }
+    }
+
+    async function disconnectSerial() {
+      keepReading = false;
+      if (reader) {
+        try { await reader.cancel(); reader.releaseLock(); } catch (e) {}
+      }
+      if (serialPort) {
+        try { await serialPort.close(); } catch (e) {}
+        serialPort = null;
+      }
+      isConnected = false;
+      updateConnectionStatus(false, "Disconnected");
+      logToTerminal("USB Device disconnected.", "info");
+    }
+
+    async function readSerialStream() {
+      const textDecoder = new TextDecoderStream();
+      serialPort.readable.pipeTo(textDecoder.writable);
+      reader = textDecoder.readable.getReader();
+      let buffer = "";
+      try {
+        while (keepReading) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          if (value) {
+            buffer += value;
+            const lines = buffer.split('\n');
+            buffer = lines.pop();
+            for (const line of lines) parseIncomingSensorData(line);
+          }
+        }
+      } catch (err) {
+      } finally {
+        reader.releaseLock();
+      }
+    }
+
+    document.getElementById('btnConnectSerial').addEventListener('click', toggleSerialConnection);
+
+    function updateConnectionStatus(connected, text) {
+      const liveDot = document.getElementById('liveDot');
+      const statusText = document.getElementById('liveStatusText');
+      if (connected) {
+        liveDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping";
+        statusText.innerText = text || "Live Stream";
+        statusText.className = "text-emerald-700 font-bold";
+      } else {
+        liveDot.className = "w-2.5 h-2.5 rounded-full bg-slate-400";
+        statusText.innerText = text || "Offline";
+        statusText.className = "text-slate-600";
+      }
+    }
+
+    // ================= DEMO / SIMULATION =================
+    function startDemo() {
+      isDemoMode = true;
+      document.getElementById('demoBtnText').innerText = "Stop Demo";
+      document.getElementById('btnToggleDemo').className = "px-3 py-1.5 bg-amber-500 text-white text-xs font-semibold rounded-xl border border-amber-600 shadow-subtle transition flex items-center gap-1.5 cursor-pointer";
+      updateConnectionStatus(true, "Simulated Demo");
+      logToTerminal("Demo Simulation Mode active.", "info");
+
+      demoInterval = setInterval(() => {
+        sensorData.soil = Math.min(100, Math.max(10, sensorData.soil + (Math.random() * 3 - 1.5)));
+        sensorData.soilRaw = Math.round(4095 - (sensorData.soil * 30));
+        sensorData.rain = Math.min(100, Math.max(0, sensorData.rain + (Math.random() * 4 - 2)));
+        sensorData.rainRaw = Math.round(4095 - (sensorData.rain * 35));
+        sensorData.pitch = sensorData.pitch + (Math.random() * 1.2 - 0.6);
+        sensorData.roll = sensorData.roll + (Math.random() * 0.8 - 0.4);
+
+        const payload = JSON.stringify({
+          soil: Math.round(sensorData.soil),
+          rain: Math.round(sensorData.rain),
+          pitch: parseFloat(sensorData.pitch.toFixed(1)),
+          roll: parseFloat(sensorData.roll.toFixed(1)),
+          temp: 28.4
+        });
+        logToTerminal(payload);
+        updateDashboardUI();
+      }, 1000);
+    }
+
+    function stopDemo() {
+      isDemoMode = false;
+      if (demoInterval) clearInterval(demoInterval);
+      demoInterval = null;
+      document.getElementById('demoBtnText').innerText = "Demo Mode";
+      document.getElementById('btnToggleDemo').className = "px-3 py-1.5 bg-white hover:bg-amber-50/60 text-slate-700 hover:text-amber-800 text-xs font-semibold rounded-xl border border-slate-200 shadow-subtle transition flex items-center gap-1.5 cursor-pointer";
+      if (!isConnected) updateConnectionStatus(false, "Offline");
+      logToTerminal("Demo Simulation stopped.", "info");
+    }
+
+    document.getElementById('btnToggleDemo').addEventListener('click', () => {
+      if (isDemoMode) stopDemo();
+      else startDemo();
+    });
+
+    // 1-Click Simulation Scenarios
+    window.setSimScenario = function(type) {
+      if (!isDemoMode && !isConnected) startDemo();
+      if (type === 'safe') {
+        sensorData.soil = 24;
+        sensorData.rain = 0;
+        sensorData.pitch = 1.4;
+        sensorData.roll = -0.8;
+      } else if (type === 'warning') {
+        sensorData.soil = 68;
+        sensorData.rain = 48;
+        sensorData.pitch = 17.2;
+        sensorData.roll = 5.4;
+      } else if (type === 'danger') {
+        sensorData.soil = 89;
+        sensorData.rain = 85;
+        sensorData.pitch = 31.5;
+        sensorData.roll = -18.2;
+      }
+      updateDashboardUI();
+    };
+
+    // Auto initialize UI
+    updateDashboardUI();
+
+    // Auto-connect to Python Backend SSE Stream if running via Flask (localhost)
+    if (window.location.protocol.startsWith('http')) {
+      try {
+        const evtSource = new EventSource('/api/stream');
+        evtSource.onmessage = function(event) {
+          if (isConnected || isDemoMode || isIpConnected) return;
+          try {
+            const data = JSON.parse(event.data);
+            if (data && data.connected) {
+              sensorData.soil = data.soil ?? sensorData.soil;
+              sensorData.soilRaw = data.soil_raw ?? sensorData.soilRaw;
+              sensorData.rain = data.rain ?? sensorData.rain;
+              sensorData.rainRaw = data.rain_raw ?? sensorData.rainRaw;
+              sensorData.pitch = data.pitch ?? sensorData.pitch;
+              sensorData.roll = data.roll ?? sensorData.roll;
+              updateConnectionStatus(true, `Python: ${data.port}`);
+              updateDashboardUI();
+              logToTerminal(`[Python Bridge] ${event.data}`);
+            }
+          } catch (e) {}
+        };
+      } catch (err) {}
+    }
+  </script>
+</body>
+</html>
